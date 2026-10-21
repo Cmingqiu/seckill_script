@@ -1,0 +1,6 @@
+# 登录态与运行产物，不要提交
+profile/
+logs/
+.idea/
+__pycache__/
+*.pyc

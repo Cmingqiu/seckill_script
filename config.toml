@@ -1,0 +1,84 @@
+# 腾讯云「上云精选·限时秒杀」抢购脚本配置
+
+[page]
+# 活动页地址（带 #MS 锚点，脚本会自动滚到秒杀区）
+url = "https://cloud.tencent.com/act/pro/featured-202607?from=27491&Is=sdk-topnav&page=warmup-202606&s_source=https%3A%2F%2Fcloud.tencent.com%2Fact%2Fpro%2Fwarmup202506#MS"
+
+[target]
+# 商品卡片容器的 CSS 选择器（实测秒杀区每张卡都是 .uno3-buy-card）
+card_selector = ".uno3-buy-card"
+# 目标商品卡片必须同时包含这些文本，用来把候选卡片锁定到「轻量应用服务器 4核4G3M」那张
+# 想更严格可再加一项 "300GB"（该卡片独有，专区卡片里没有）
+card_anchors = ["轻量应用服务器", "4核4G3M"]
+# 可以抢的按钮文案（命中即点击）
+buy_texts = ["立即抢购"]
+# 未开始（脚本会记录并在日志里显示；「取消提醒」= 已经设过提醒）
+ready_texts = ["添加提醒", "设置提醒", "取消提醒"]
+# 已售罄 / 抢购结束
+soldout_texts = ["已抢光", "已抢完", "今日已抢光", "已售罄"]
+
+[timing]
+# 每天两场，24 小时制 HH:MM:SS
+fire_times = ["10:00:00", "15:00:00"]
+# 提前多少秒打开页面并完成预热
+preload_seconds = 180
+# 开抢前多少秒进入高频轮询
+hot_seconds = 20
+# 预热期轮询间隔（毫秒）
+warm_interval_ms = 500
+# 高频轮询间隔（毫秒）：越小越灵敏，30ms 约合 33 次/秒
+hot_interval_ms = 30
+# 允许比开抢时刻提前多少毫秒点击（防止页面提前渲染出「立即抢购」误触）
+allow_early_ms = 300
+# 开抢后多少秒还没点成功就放弃
+give_up_seconds = 90
+# 单次点击后等待多久再判断结果（毫秒）
+click_settle_ms = 250
+# 最多点击尝试次数。20 次在实测里 11.6 秒就耗尽了（每轮约 580ms），
+# 而 give_up_seconds 还留着 90 秒的窗口；60 次约 20 秒，更贴合放弃时限。
+max_click_attempts = 60
+# 抢购点击后页面会盖一层遮罩（请求进行中）。等它退掉再判定，超时才改用 JS 直达点击。
+# 实测这层遮罩就是老日志里「按钮被浮层遮挡」的真身：它不是障碍，是点击生效的信号。
+mask_wait_ms = 1500
+
+# 开抢后多少毫秒内必须发出第一次点击（硬指标）。0 = 关闭。
+# 为什么需要：页面的「立即抢购」文案可能明显晚于开抢时刻才渲染（2026-10-20 15:00 场
+# 脚本到 +828ms 才看到它，其中脚本侧开销约 40ms，其余是页面状态/渲染延迟）。
+# 脚本现在在页面里装了哨兵（MutationObserver + rAF），文案一落进 DOM 就当帧点击；
+# 如果到了这个时间点哨兵还没命中，就直接对预热时记下的按钮坐标补一次点击。
+# 代价：那一击可能打在「添加提醒」上（弹一次提醒浮层，脚本会顺手关掉）。
+blind_click_ms = 100
+
+[chrome]
+# cdp    = 附加到日常 Chrome，直接复用它已经登录的 cookie（推荐，不用再登录一次）
+#          需要一次性在日常 Chrome 里打开 chrome://inspect/#remote-debugging
+#          并勾选「Allow remote debugging for this browser instance」
+#          原因：Chrome 136+ 禁止用 --remote-debugging-port 挂默认 profile，
+#                且 Chrome 155 对 Network\Cookies 加了独占锁，外部读不到。
+# launch = 脚本自己启动浏览器，用 [browser].user_data_dir 里的 profile（需先 --login）
+mode = "cdp"
+# 尝试连接的调试端口（脚本还会自动读 Chrome 写下的 DevToolsActivePort）
+cdp_ports = [9222]
+# 留空 = 自动探测 %LOCALAPPDATA%\Google\Chrome\User Data
+chrome_user_data_dir = ""
+# 附加时优先复用已打开的腾讯云标签页，而不是新开一个
+reuse_existing_tab = true
+
+[browser]
+# chrome = 用系统 Chrome（指纹更真实，推荐）；留空 = 用 Playwright 自带 Chromium
+channel = "chrome"
+# 必须 false：秒杀需要真实窗口，后台标签页的定时器会被浏览器节流
+headless = false
+# launch 模式的登录态目录（相对脚本目录）
+user_data_dir = "./profile"
+window_size = "1600,1000"
+# 一轮结束后是否保持浏览器打开（便于人工完成付款）
+keep_open_after = true
+# 非交互运行（任务计划）时，抢到后保留浏览器多少秒
+keep_open_seconds = 1800
+
+[log]
+dir = "./logs"
+level = "INFO"
+# 命中点击 / 抢购结束时截图，便于事后核对
+screenshot = true
